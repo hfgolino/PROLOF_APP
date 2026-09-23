@@ -80,7 +80,7 @@
   <select id="task" required></select>
 
   <h2 style="margin-top:22px">2 · Score yourself first</h2>
-  <p class="hint">Use the Student Scoring Guide. Your honest self-score is part of the exercise;
+  <p class="hint" id="selfHint">Use the Student Scoring Guide. Your honest self-score is part of the exercise;
   the AI never sees it, and you will compare the two in a moment.</p>
   <label>Representation of Information</label>
   <div class="scorerow" id="selfInfo"></div>
@@ -99,12 +99,15 @@
 
 <div id="result" class="card">
   <h2 id="rTask">Feedback</h2>
-  <div id="rProvisional" style="display:none; background:#fdf6e3; border:1px solid #e8d9a0;
-       border-radius:8px; padding:10px 12px; margin:10px 0; font-size:.92em;">
-    <b>Note:</b> automatic scoring for Units III&ndash;V is still being calibrated.
-    Treat these scores as a first opinion, not a grade &mdash; your self-scores count,
-    and your instructor reviews this work.
+  <div id="rSuggest" style="display:none;">
+    <p class="hint" style="margin-top:0">For Units III&ndash;V you receive suggestions for
+    improving your work, not scores. Your instructor reviews this work.</p>
+    <div class="fbh">How to improve your representation of information</div>
+    <ul class="fb" id="rSugInfo"></ul>
+    <div class="fbh">How to improve your representation of reasoning</div>
+    <ul class="fb" id="rSugThink"></ul>
   </div>
+  <div id="rScores">
   <div class="scoregrid">
     <div class="scorebox">
       <div class="lbl">Information</div>
@@ -122,6 +125,7 @@
   <div class="fbh">How to raise your score</div>
   <ul class="fb" id="rImprove"></ul>
   <div class="closing" id="rFeedback"></div>
+  </div>
   <div class="meta" id="rMeta"></div>
   <button id="again">Submit another task</button>
 </div>
@@ -158,6 +162,7 @@ const TASKS = [
   ["U3A5","Unit III · Act 5 (two presuppositions)"],
   ["U3A6","Unit III · Act 6 (Feuerstein)"],
   ["U3A7","Unit III · Act 7 (perception)"],
+  ["U3A8","Unit III · Act 8 (attention)"],
   ["U3A9","Unit III · Act 9 (mediated learning)"],
   ["U4A1","Unit IV · Act 1 (football contradiction)"],
   ["U4A2","Unit IV · Act 2 (teacher & student)"],
@@ -174,6 +179,11 @@ const TASKS = [
 const $ = id => document.getElementById(id);
 const sel = $("task");
 TASKS.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.appendChild(o); });
+const HINT_SCORES = $("selfHint").textContent;
+const HINT_SUGGEST = "Use the Student Scoring Guide. Your honest self-score is part of the exercise " +
+  "and is recorded for your instructor. For Units III–V the AI gives you suggestions " +
+  "for improving your work, not scores.";
+sel.onchange = () => { $("selfHint").textContent = /^U[345]/.test(sel.value) ? HINT_SUGGEST : HINT_SCORES; };
 
 function scoreRow(el) {
   const state = { val: null };
@@ -286,19 +296,25 @@ function showResult(d) {
   $("form").style.display = "none";
   $("result").style.display = "block";
   $("rTask").textContent = "Feedback — " + d.task;
-  const prov = (d.provisional !== undefined) ? d.provisional : /^U[345]/.test(sel.value);
-  $("rProvisional").style.display = prov ? "block" : "none";
-  $("rInfo").textContent = d.ai_info;
-  $("rThink").textContent = d.ai_think;
-  $("rInfoSelf").innerHTML = `you said <b class="${cmpClass(d.ai_info, d.self_info)}">${d.self_info}</b>`;
-  $("rThinkSelf").innerHTML = `you said <b class="${cmpClass(d.ai_think, d.self_think)}">${d.self_think}</b>`;
   const fill = (id, arr) => {
     const ul = $(id); ul.innerHTML = "";
     (arr || []).forEach(x => { const li = document.createElement("li"); li.textContent = x; ul.appendChild(li); });
   };
-  fill("rWell", d.what_went_well);
-  fill("rImprove", d.how_to_improve);
-  $("rFeedback").textContent = d.feedback || "";
+  const suggest = d.mode === "suggestions";
+  $("rSuggest").style.display = suggest ? "block" : "none";
+  $("rScores").style.display = suggest ? "none" : "block";
+  if (suggest) {
+    fill("rSugInfo", d.improve_information);
+    fill("rSugThink", d.improve_thinking);
+  } else {
+    $("rInfo").textContent = d.ai_info;
+    $("rThink").textContent = d.ai_think;
+    $("rInfoSelf").innerHTML = `you said <b class="${cmpClass(d.ai_info, d.self_info)}">${d.self_info}</b>`;
+    $("rThinkSelf").innerHTML = `you said <b class="${cmpClass(d.ai_think, d.self_think)}">${d.self_think}</b>`;
+    fill("rWell", d.what_went_well);
+    fill("rImprove", d.how_to_improve);
+    $("rFeedback").textContent = d.feedback || "";
+  }
   $("rMeta").textContent =
     `Submission ${String(d.submission_id || "").slice(0, 8)} · recorded ${new Date().toLocaleString()}` +
     (d.flagged ? " · this one will also be reviewed by your instructor" : "");
@@ -307,7 +323,7 @@ function showResult(d) {
 $("again").onclick = () => {
   photos.length = 0; renderPhotos();
   selfInfoRow.reset(); selfThinkRow.reset();
-  sel.value = "";
+  sel.value = ""; sel.onchange();
   $("result").style.display = "none";
   $("form").style.display = "block";
   window.scrollTo({ top: 0 });
