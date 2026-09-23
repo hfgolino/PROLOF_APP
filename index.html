@@ -32,9 +32,11 @@
   .photoslot { width:130px; height:100px; border:1.5px dashed var(--line); border-radius:10px;
     display:flex; align-items:center; justify-content:center; font-size:.78rem; color:var(--mut);
     cursor:pointer; overflow:hidden; background:var(--teal-pale); position:relative; }
-  .photoslot img { width:100%; height:100%; object-fit:cover; }
+  .photoslot img { width:100%; height:100%; object-fit:contain; background:#fff; }
   .photoslot .x { position:absolute; top:4px; right:6px; background:rgba(0,0,0,.55); color:#fff;
     border-radius:50%; width:20px; height:20px; line-height:20px; text-align:center; font-size:.8rem; }
+  .photoslot .rot { position:absolute; bottom:4px; left:6px; background:rgba(0,0,0,.6); color:#fff;
+    border-radius:14px; padding:3px 9px; font-size:.78rem; font-weight:600; }
   #submitBtn { width:100%; margin-top:18px; padding:14px; font-size:1.05rem; font-weight:700;
     background:var(--teal); color:#fff; border:0; border-radius:10px; cursor:pointer; }
   #submitBtn:disabled { opacity:.55; cursor:not-allowed; }
@@ -89,7 +91,8 @@
 
   <h2 style="margin-top:22px">3 · Photograph your work</h2>
   <p class="hint">Working page first; add the answer grid as a second photo if it is on a
-  separate sheet. Good light, page flat, no names on the page.</p>
+  separate sheet. Good light, page flat, no names on the page. Make sure the writing
+  is upright in the preview; tap <b>&#8635; rotate</b> on a photo if it is sideways.</p>
   <div class="photos" id="photos"></div>
   <input type="file" id="file" accept="image/*" capture="environment" hidden>
 
@@ -210,8 +213,9 @@ function renderPhotos() {
   photosEl.innerHTML = "";
   photos.forEach((p, i) => {
     const d = document.createElement("div"); d.className = "photoslot";
-    d.innerHTML = `<img src="${p}"><span class="x">×</span>`;
+    d.innerHTML = `<img src="${p}"><span class="x">×</span><span class="rot">&#8635; rotate</span>`;
     d.querySelector(".x").onclick = e => { e.stopPropagation(); photos.splice(i, 1); renderPhotos(); };
+    d.querySelector(".rot").onclick = e => { e.stopPropagation(); rotatePhoto(i); };
     photosEl.appendChild(d);
   });
   if (photos.length < 2) {
@@ -220,6 +224,20 @@ function renderPhotos() {
     d.onclick = () => fileEl.click();
     photosEl.appendChild(d);
   }
+}
+/* rotate a stored photo 90 degrees clockwise (the rotated image is what gets sent) */
+function rotatePhoto(i) {
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas");
+    c.width = img.height; c.height = img.width;
+    const g = c.getContext("2d");
+    g.translate(c.width, 0); g.rotate(Math.PI / 2);
+    g.drawImage(img, 0, 0);
+    photos[i] = c.toDataURL("image/jpeg", 0.85);
+    renderPhotos();
+  };
+  img.src = photos[i];
 }
 renderPhotos();
 fileEl.onchange = () => {
